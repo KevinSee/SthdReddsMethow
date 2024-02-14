@@ -1,6 +1,6 @@
 ---
 title: "Estimates of Methow Steelhead Redds and Spawners"
-subtitle: "Spawn Year 2022"
+subtitle: "Spawn Year 2014"
 author:
   - Kevin See:
       email: Kevin.See@dfw.wa.gov
@@ -125,7 +125,7 @@ knitr::write_bib(c("tidyverse",
 
 ```{r load-data}
 # what year is this report for?
-yr = 2022
+yr = 2014
 # what species is this report for?
 spp = "Steelhead"
 # how many observers were on each survey?
@@ -499,7 +499,7 @@ print_mod_summ(species = spp,
                          "exp_sp_total_log" = "Log Surveyor Exp.",
                          "mean_discharge" = "Mean Discharge",
                          "mean_thalweg_cv" = "Mean Thalweg CV",
-                         "naive_density_km" = "Obs. Redd Density"))) |>
+                         "naive_density_km" = "Obs. Redd Density"))) |> 
   arrange(desc(abs(Estimate))) |> 
   kable(digits = 3,
         booktabs = T,
@@ -516,7 +516,7 @@ Redd counts were conducted on a nearly weekly basis for index reaches, and once 
 
 ```{r covariate-comparison, fig.cap = "Net error covariate values. Colors correspond to either the original study (Model Data) or the surveys where the model was used in this report (Predictive Data)."}
 redd_df |> 
-  filter(visible_redds > 0) |>
+  filter(visible_redds > 0) |> 
   compare_covars(species = spp,
                  num_obs = n_observers) |> 
   mutate(across(covariate,
@@ -561,9 +561,7 @@ When summing reach-scale estimates to obtain estimates at the stream scale, an a
 
 Estimates of escapement to various tributaries in the Methow were made using a Dam Adult Branch Occupancy Model (DABOM) [@Waterhouse2020] based on PIT tag detections of fish tagged at Priest Rapids dam. All fish that escaped to the various tributaries were assumed to be spawners (i.e. prespawn mortality only occurs in the mainstem). Reaches below the PIT tag arrays in some tributaries were surveyed for redds, but we assumed there was no observer error in those reaches.
 
-To convert estimates of redds in mainstem areas into estimates of natural and hatchery spawners, the estimates of redds were multiplied by a fish per redd (FpR) estimate and then by the proportion of hatchery or wild fish. The fish per redd estimate was based on PIT tags from the branching patch-occupancy model observed to move into the lower mainstem Methow, but not into tributaries (between PTAGIS sites LMR and MRW). FpR was calculated as the ratio of male to female fish, plus 1. Reaches MRW1 - MRW8 are all in the lower mainstem Methow below Winthrop. Similarly, the proportion of hatchery and natural origin fish was calculated from the same group of PIT tags for areas in the mainstem, and the various tributaries. For reaches in tributaries below the tributary PIT tag array, FpR and the proportion hatchery were calculated based on observed PIT tags moving into the lower regions of each tributary. For the reach just below the Methow hatchery outfall, we used FpR and pHOS from Spring Creek (SCP), because they are both hatchery channels of a similar water source in close proximity to each other.
-
-Hatchery fish were further divided into safety net (HOS-SN) and conservation (HOS-C) groups. The safety net group was defined as hatchery fish with an adipose fin clip but no coded wire tag (CWT), whereas the conservation group was defined as having a CWT. Therefore, for each spatial area, fish could be placed in one of three groups. For mainstem reaches where redd surveys were conducted, the total spawners were divided into those three groups (NOS, HOS-SN and HOS-C) based on proportions of observed PIT tags. For tributaries with existing estimates of natural origin and hatchery spawners, the hatchery spawners were divided into HOS-SN and HOS-C groups, again based on proportions from observed hatchery PIT tags. 
+To convert estimates of redds in mainstem areas into estimates of natural and hatchery spawners, the estimates of redds were multiplied by a fish per redd (FpR) estimate and then by the proportion of hatchery or wild fish. The fish per redd estimate was based on PIT tags from the branching patch-occupancy model observed to move into the lower mainstem Methow, but not into tributaries (between PTAGIS sites LMR and MRW). FpR was calculated as the ratio of male to female fish, plus 1. Reaches MRW1 - MRW8 are all in the lower mainstem Methow below Winthrop. Similarly, the proportion of hatchery and natural origin fish was calculated from the same group of PIT tags for areas in the mainstem, and the various tributaries. For reaches in tributaries below the tributary PIT tag array, FpR and the proportion hatchery were calculated based on observed PIT tags moving into the lower regions of each tributary. For the reach just below the Methow hatchery outfall, we used FpR and pHOS from Spring Creek (SCP), because they are both hatchery channels of a similar water source in close proximity to each other.  
 
 For `r yr`, we noticed a discrepancy in the sex calls at Priest Rapids and the sex calls from broodstock collection at Wells Hatchery and in the Wenatchee. Therefore, we developed a correction factor that accounts for the error rate in female and male calls independently, and adjusts the fish / redd estimate accordingly. The error rate of sex calls at Priest are shown in Appendix \@ref(appendA) in Table \@ref(tab:sex-err).
 
@@ -572,7 +570,10 @@ For `r yr`, we noticed a discrepancy in the sex calls at Priest Rapids and the s
 After translating estimates of redds to estimates of spawners by origin, we can then compare the spawner estimates to escapement estimates made using PIT tags, and estimate a prespawn mortality rate. Taking the total PIT-tag based escapement estimate, by origin, to the Methow, we then subtract any fish removed for broodstock or surplus, as well as any deaths due to harvest (Table \@ref(tab:removals)), and then subtract the total estimate of spawners, including the tributaries, to provide an estimate of how many fish succumbed to prespawn mortality. Dividing that number by the total escapement estimate provides an estimate of the prespawn mortality rate, by origin, across the entire Methow population. 
 
 ```{r removals}
-rem_df |> 
+if(nrow(rem_df) > 0) {
+  rem_df |> 
+  # select(-population) |> 
+  select(-subbasin) |> 
   pivot_wider(names_from = origin, 
               values_from = removed,
               values_fill = 0)  |> 
@@ -585,6 +586,7 @@ rem_df |>
                                   "scale_down")) |> 
   column_spec(c(2:4),
               width = "1in")
+}
 ```
 
 If either origin had a higher estimates of spawners compared to escapement, we fixed our prespawn mortality estimate at 0, reflecting a very low level of prespawn mortality. There is uncertainty in both the escapement and spawner estimates, which could explain why these types of scenarios could arise. 

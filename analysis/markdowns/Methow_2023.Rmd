@@ -1,6 +1,6 @@
 ---
 title: "Estimates of Methow Steelhead Redds and Spawners"
-subtitle: "Spawn Year 2022"
+subtitle: "Spawn Year 2023"
 author:
   - Kevin See:
       email: Kevin.See@dfw.wa.gov
@@ -125,7 +125,7 @@ knitr::write_bib(c("tidyverse",
 
 ```{r load-data}
 # what year is this report for?
-yr = 2022
+yr = 2023
 # what species is this report for?
 spp = "Steelhead"
 # how many observers were on each survey?
@@ -787,7 +787,7 @@ met_tags %>%
                 latex_options = "striped")
 ```
 
-Parameter estimates for fish / redd and proportion hatchery based on this PIT tag data are shown in Table \@ref(tab:fpr-hatch-prop).
+Parameter estimates for fish / redd and proportion hatchery based on this PIT tag data are shown in Tables \@ref(tab:fpr-hatch-prop) (for areas with redd data) and \@ref(tab:fpr-hatch-prop-other) (for other areas). Fish / redd estimates in Table \@ref(tab:fpr-hatch-prop-other) are not used in the analyses presented here, but the results are made available. 
 
 ```{r fpr-hatch-prop}
 fpr_df %>%
@@ -795,6 +795,22 @@ fpr_df %>%
          starts_with("fpr"),
          starts_with("phos")) %>%
   filter(location %in% union(unique(redd_results$river),
+                             unique(redd_results$location))) %>%
+  kable(digits = 3,
+        booktabs = T,
+        caption = "Fish per redd and hatchery origin proportion estimates.",
+        col.names = c('Area', 'Fish / redd', 'FpR Std. Error', 'Prop. Hatchery', 'Prop Std. Error')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                latex_options = c("striped",
+                                  "HOLD_position"))
+```
+
+```{r fpr-hatch-prop-other}
+fpr_df %>%
+  select(location, 
+         starts_with("fpr"),
+         starts_with("phos")) %>%
+  filter(!location %in% union(unique(redd_results$river),
                              unique(redd_results$location))) %>%
   kable(digits = 3,
         booktabs = T,
@@ -966,7 +982,7 @@ ps_mort_met %>%
 
 Most of the covariates collected in `r yr` were within the range of those in the model data set from @Murdoch2018, leading to estimates of net error in a very similar range to the model dataset (Figure \@ref(fig:covariate-comparison)). However, some reaches did not meet the minimum thresholds of number of observed redds or number of weeks with at least one new redd observed, so we used the GAUC method in `r as.character(as.english(sum(redd_results$GAUC)))` out of  `r as.character(as.english(nrow(redd_results)))` reaches.
 
-Natural origin steelhead PIT-tagged at Priest Rapids dam were not detected in Libby Creek this year, nor were HOR-C fish detected in Gold, Libby or the Upper Methow, leading to estimates of zero spawners for those origins in those tributaries (Table \@ref(tab:spwn-area)). Because these estimates are based on a sample of the entire Upper Columbia steelhead run, it's possible that a low number of steelhead may have spawned in those tributaries, but it's potentially more likely that the estimate of zero steelhead spawners in those areas is correct.
+HOR-C origin steelhead PIT-tagged at Priest Rapids dam were not detected in Libby Creek or at the Methow Fish Hatchery array this year, leading to estimates of zero spawners for those origins in those areas (Table \@ref(tab:spwn-area)). Because these estimates are based on a sample of the entire Upper Columbia steelhead run, it's possible that a low number of HOR-C steelhead may have spawned in those tributaries, but it's potentially more likely that the estimate of zero HOR-C steelhead spawners in those areas is correct.
 
 <!-- The estimates of high prespawn mortality in the lower mainstem of the Methow for hatchery fish could be accurate, but it should be noted that many of the redd surveys failed to observe a single redd in many of the reaches (Table \@ref(tab:redd-est-rch)). Without any observed redds, any estimate of net error is moot, as the adjusted redd estimate will still be zero. So if all the redds were missed in some of those reaches, the estimate of total spawners in the lower mainstem should be higher, leading to a lower estimate of prespawn mortality. It is unclear whether that actually occurred, or if there were actually no redds this year in those reaches. -->
 
@@ -995,7 +1011,7 @@ These error rates were used to adjust the counts of male and female tags within 
 
 ```{r sex-err}
 # compile all years of sexing error rates
-read_excel("T:/DFW-Team FP Upper Columbia Escapement - General/UC_Sthd/estimates/UC_STHD_Model_Output.xlsx",
+read_excel("T:/DFW-Team FP Upper Columbia Escapement - General/UC_Sthd/estimates/UC_STHD_Model_Output_20240108.xlsx",
            "Sex Error Rates") |> 
   rename(`Lower CI` = LCI,
          `Upper CI` = UCI) |> 

@@ -495,11 +495,11 @@ print_mod_summ(species = spp,
   clean_names("title") |> 
   select(1:3) |> 
   mutate(across(Term,
-                recode,
-                "exp_sp_total_log" = "Log Surveyor Exp.",
-                "mean_discharge" = "Mean Discharge",
-                "mean_thalweg_cv" = "Mean Thalweg CV",
-                "naive_density_km" = "Obs. Redd Density")) |> 
+                ~ recode(.,
+                         "exp_sp_total_log" = "Log Surveyor Exp.",
+                         "mean_discharge" = "Mean Discharge",
+                         "mean_thalweg_cv" = "Mean Thalweg CV",
+                         "naive_density_km" = "Obs. Redd Density"))) |>
   arrange(desc(abs(Estimate))) |> 
   kable(digits = 3,
         booktabs = T,
@@ -514,10 +514,11 @@ print_mod_summ(species = spp,
 
 Redd counts were conducted on a nearly weekly basis for index reaches, and once during the peak spawning period for non-index reaches. The covariates in the observer error model of @Murdoch2018 were collected during each survey. The covariate of mean thalweg CV was calculated based on all measurements taken within a reach across years (assuming this covariate does not vary through time within a reach). They were compared with the covariates contained in the model data set, as well as the estimates of net error (Figure \@ref(fig:covariate-comparison)). 
 
-```{r covariate-comparison, fig.cap = "Net error covariate values. Colors correspond to either the original study or the reaches where the model was used in this report (Predictive Data)."}
-compare_covars(redd_df,
-               species = spp,
-               num_obs = n_observers) |> 
+```{r covariate-comparison, fig.cap = "Net error covariate values. Colors correspond to either the original study (Model Data) or the surveys where the model was used in this report (Predictive Data)."}
+redd_df |> 
+  filter(visible_redds > 0) |>
+  compare_covars(species = spp,
+                 num_obs = n_observers) |> 
   mutate(across(covariate,
                 recode,
                 "exp_sp_total_log" = "Log Surveyor Exp.",
@@ -546,7 +547,7 @@ compare_covars(redd_df,
 
 ```
 
-Those covariates in the observer error model were collected during each survey in `r yr`, and predictions of net error were made for each survey. From these survey specific estimates of net error, a mean and standard error of net error was calculated for each reach. The standard deviation was calculated by taking the square root of the sum of the squared standard errors for all predictions within a reach.
+Those covariates in the observer error model were collected during each survey in `r yr`, but predictions of net error were made for only for surveys when visible redds were present. From these survey specific estimates of net error, a mean and standard error of net error was calculated for each reach. The standard deviation was calculated by taking the square root of the sum of the squared standard errors for all predictions within a reach.
 
 ## Estimating Redds
 
@@ -560,7 +561,9 @@ When summing reach-scale estimates to obtain estimates at the stream scale, an a
 
 Estimates of escapement to various tributaries in the Methow were made using a Dam Adult Branch Occupancy Model (DABOM) [@Waterhouse2020] based on PIT tag detections of fish tagged at Priest Rapids dam. All fish that escaped to the various tributaries were assumed to be spawners (i.e. prespawn mortality only occurs in the mainstem). Reaches below the PIT tag arrays in some tributaries were surveyed for redds, but we assumed there was no observer error in those reaches.
 
-To convert estimates of redds in mainstem areas into estimates of natural and hatchery spawners, the estimates of redds were multiplied by a fish per redd (FpR) estimate and then by the proportion of hatchery or wild fish. The fish per redd estimate was based on PIT tags from the branching patch-occupancy model observed to move into the lower mainstem Methow, but not into tributaries (between PTAGIS sites LMR and MRW). FpR was calculated as the ratio of male to female fish, plus 1. Reaches MRW1 - MRW8 are all in the lower mainstem Methow below Winthrop. Similarly, the proportion of hatchery and natural origin fish was calculated from the same group of PIT tags for areas in the mainstem, and the various tributaries. For reaches in tributaries below the tributary PIT tag array, FpR and the proportion hatchery were calculated based on observed PIT tags moving into the lower regions of each tributary. For the reach just below the Methow hatchery outfall, we used FpR and pHOS from Spring Creek (SCP), because they are both hatchery channels of a similar water source in close proximity to each other.  
+To convert estimates of redds in mainstem areas into estimates of natural and hatchery spawners, the estimates of redds were multiplied by a fish per redd (FpR) estimate and then by the proportion of hatchery or wild fish. The fish per redd estimate was based on PIT tags from the branching patch-occupancy model observed to move into the lower mainstem Methow, but not into tributaries (between PTAGIS sites LMR and MRW). FpR was calculated as the ratio of male to female fish, plus 1. Reaches MRW1 - MRW8 are all in the lower mainstem Methow below Winthrop. Similarly, the proportion of hatchery and natural origin fish was calculated from the same group of PIT tags for areas in the mainstem, and the various tributaries. For reaches in tributaries below the tributary PIT tag array, FpR and the proportion hatchery were calculated based on observed PIT tags moving into the lower regions of each tributary. For the reach just below the Methow hatchery outfall, we used FpR and pHOS from Spring Creek (SCP), because they are both hatchery channels of a similar water source in close proximity to each other.
+
+Hatchery fish were further divided into safety net (HOS-SN) and conservation (HOS-C) groups. The safety net group was defined as hatchery fish with an adipose fin clip but no coded wire tag (CWT), whereas the conservation group was defined as having a CWT. Therefore, for each spatial area, fish could be placed in one of three groups. For mainstem reaches where redd surveys were conducted, the total spawners were divided into those three groups (NOS, HOS-SN and HOS-C) based on proportions of observed PIT tags. For tributaries with existing estimates of natural origin and hatchery spawners, the hatchery spawners were divided into HOS-SN and HOS-C groups, again based on proportions from observed hatchery PIT tags. 
 
 For `r yr`, we noticed a discrepancy in the sex calls at Priest Rapids and the sex calls from broodstock collection at Wells Hatchery and in the Wenatchee. Therefore, we developed a correction factor that accounts for the error rate in female and male calls independently, and adjusts the fish / redd estimate accordingly. The error rate of sex calls at Priest are shown in Appendix \@ref(appendA) in Table \@ref(tab:sex-err).
 
@@ -570,8 +573,6 @@ After translating estimates of redds to estimates of spawners by origin, we can 
 
 ```{r removals}
 rem_df |> 
-  # select(-population) |> 
-  select(-subbasin) |> 
   pivot_wider(names_from = origin, 
               values_from = removed,
               values_fill = 0)  |> 
@@ -786,7 +787,7 @@ met_tags %>%
                 latex_options = "striped")
 ```
 
-Parameter estimates for fish / redd and proportion hatchery based on this PIT tag data are shown in Table \@ref(tab:fpr-hatch-prop).
+Parameter estimates for fish / redd and proportion hatchery based on this PIT tag data are shown in Tables \@ref(tab:fpr-hatch-prop) (for areas with redd data) and \@ref(tab:fpr-hatch-prop-other) (for other areas). Fish / redd estimates in Table \@ref(tab:fpr-hatch-prop-other) are not used in the analyses presented here, but the results are made available. 
 
 ```{r fpr-hatch-prop}
 fpr_df %>%
@@ -794,6 +795,22 @@ fpr_df %>%
          starts_with("fpr"),
          starts_with("phos")) %>%
   filter(location %in% union(unique(redd_results$river),
+                             unique(redd_results$location))) %>%
+  kable(digits = 3,
+        booktabs = T,
+        caption = "Fish per redd and hatchery origin proportion estimates.",
+        col.names = c('Area', 'Fish / redd', 'FpR Std. Error', 'Prop. Hatchery', 'Prop Std. Error')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                latex_options = c("striped",
+                                  "HOLD_position"))
+```
+
+```{r fpr-hatch-prop-other}
+fpr_df %>%
+  select(location, 
+         starts_with("fpr"),
+         starts_with("phos")) %>%
+  filter(!location %in% union(unique(redd_results$river),
                              unique(redd_results$location))) %>%
   kable(digits = 3,
         booktabs = T,
@@ -965,7 +982,7 @@ ps_mort_met %>%
 
 Most of the covariates collected in `r yr` were within the range of those in the model data set from @Murdoch2018, leading to estimates of net error in a very similar range to the model dataset (Figure \@ref(fig:covariate-comparison)). However, some reaches did not meet the minimum thresholds of number of observed redds or number of weeks with at least one new redd observed, so we used the GAUC method in `r as.character(as.english(sum(redd_results$GAUC)))` out of  `r as.character(as.english(nrow(redd_results)))` reaches.
 
-Natural origin steelhead PIT-tagged at Priest Rapids dam were not detected in Libby Creek this year, nor were HOR-C fish detected in Gold, Libby or the Upper Methow, leading to estimates of zero spawners for those origins in those tributaries (Table \@ref(tab:spwn-area)). Because these estimates are based on a sample of the entire Upper Columbia steelhead run, it's possible that a low number of steelhead may have spawned in those tributaries, but it's potentially more likely that the estimate of zero steelhead spawners in those areas is correct.
+<!-- Natural origin steelhead PIT-tagged at Priest Rapids dam were not detected in Libby Creek this year, nor were HOR-C fish detected in Gold, Libby or the Upper Methow, leading to estimates of zero spawners for those origins in those tributaries (Table \@ref(tab:spwn-area)). Because these estimates are based on a sample of the entire Upper Columbia steelhead run, it's possible that a low number of steelhead may have spawned in those tributaries, but it's potentially more likely that the estimate of zero steelhead spawners in those areas is correct. -->
 
 <!-- The estimates of high prespawn mortality in the lower mainstem of the Methow for hatchery fish could be accurate, but it should be noted that many of the redd surveys failed to observe a single redd in many of the reaches (Table \@ref(tab:redd-est-rch)). Without any observed redds, any estimate of net error is moot, as the adjusted redd estimate will still be zero. So if all the redds were missed in some of those reaches, the estimate of total spawners in the lower mainstem should be higher, leading to a lower estimate of prespawn mortality. It is unclear whether that actually occurred, or if there were actually no redds this year in those reaches. -->
 
