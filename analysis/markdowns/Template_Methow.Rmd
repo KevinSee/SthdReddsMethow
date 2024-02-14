@@ -798,7 +798,7 @@ fpr_df %>%
                              unique(redd_results$location))) %>%
   kable(digits = 3,
         booktabs = T,
-        caption = "Fish per redd and hatchery origin proportion estimates.",
+        caption = "Fish per redd and hatchery origin proportion estimates for areas with redd counts.",
         col.names = c('Area', 'Fish / redd', 'FpR Std. Error', 'Prop. Hatchery', 'Prop Std. Error')) %>%
   kable_styling(bootstrap_options = c("striped", "hover"),
                 latex_options = c("striped",
@@ -814,7 +814,7 @@ fpr_df %>%
                              unique(redd_results$location))) %>%
   kable(digits = 3,
         booktabs = T,
-        caption = "Fish per redd and hatchery origin proportion estimates.",
+        caption = "Fish per redd and hatchery origin proportion estimates for areas without redd surveys.",
         col.names = c('Area', 'Fish / redd', 'FpR Std. Error', 'Prop. Hatchery', 'Prop Std. Error')) %>%
   kable_styling(bootstrap_options = c("striped", "hover"),
                 latex_options = c("striped",
