@@ -10,29 +10,12 @@ institute:
   - wdfw: Washington Department of Fish & Wildlife
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: 
-    wdfwTemplates::wdfw_html_format2:
+    bookdown::word_document2:
       fig_caption: yes
-      fig_height: 6
+      fig_height: 4
       fig_width: 6
       toc: yes
-      toc_depth: 3
-      toc_float:
-        collapsed: yes
-        smooth_scroll: yes
-      pandoc_args:
-      - --lua-filter=../templates/scholarly-metadata.lua
-      - --lua-filter=../templates/author-info-blocks.lua
-      - --lua-filter=../templates/pagebreak.lua
-    bookdown::html_document2:
-      fig_caption: yes
-      fig_height: 6
-      fig_width: 6
-      toc: yes
-      toc_depth: 3
-      toc_float:
-        collapsed: yes
-        smooth_scroll: yes
-      theme: simplex
+      reference_docx: "../templates/WDFW Report Template.docx" # Insert path for the DOCX file
       pandoc_args:
       - --lua-filter=../templates/scholarly-metadata.lua
       - --lua-filter=../templates/author-info-blocks.lua
@@ -48,18 +31,20 @@ output:
       - --lua-filter=../templates/scholarly-metadata.lua
       - --lua-filter=../templates/author-info-blocks2.lua
       - --lua-filter=../templates/pagebreak.lua
-    bookdown::word_document2:
+    wdfwTemplates::wdfw_html_format2:
       fig_caption: yes
-      fig_height: 4
+      fig_height: 6
       fig_width: 6
       toc: yes
-      reference_docx: "../templates/ReportTemplate.docx" # Insert path for the DOCX file
+      toc_depth: 3
+      toc_float:
+        collapsed: yes
+        smooth_scroll: yes
       pandoc_args:
       - --lua-filter=../templates/scholarly-metadata.lua
       - --lua-filter=../templates/author-info-blocks.lua
       - --lua-filter=../templates/pagebreak.lua
 bibliography:
-# - packages.bib
 - references.bib
 csl: "../templates/american-fisheries-society.csl" # Insert path for the bib-style
 abstract: |
@@ -106,9 +91,10 @@ options(knitr.kable.NA = '-')
 # what kind of document is being created?
 doc.type <- knitr::opts_knit$get('rmarkdown.pandoc.to')
 
-if(doc.type == 'docx') {
-  options(knitr.table.format = "pandoc")
-}
+if(!is.null(doc.type)) {
+  if(doc.type == 'docx') {
+    options(knitr.table.format = "pandoc")
+  }}
 
 ```
 
@@ -188,10 +174,12 @@ redd_results <- results_lst |>
           reach,
           index) %>%
   relocate(river, reach, location,
-           .before = 1) |> 
-  mutate(location = if_else(location == "Tributaries",
-                            as.character(river),
-                            location))
+           .before = 1) |>
+  # change where fish/redd etc. data comes from for reach MH1
+  mutate(across(location,
+                ~ case_when(. == "Tributaries" ~ as.character(river),
+                            reach == "MH1" ~ "Spring Creek",
+                            .default = .)))
 
 
 mainstm_est = results_lst |> 
@@ -348,7 +336,8 @@ low_met_spwn <- redd_results %>%
               select(location, starts_with('fpr')),
             by = "location") %>%
   left_join(grp_prop_lm,
-            by = "location") %>%
+            by = "location",
+            relationship = "many-to-many") %>%
   rowwise() %>%
   mutate(spwn_est = redd_est * fpr,
          spwn_se = deltamethod(~ x1 * x2,
@@ -982,7 +971,7 @@ ps_mort_met %>%
 
 Most of the covariates collected in `r yr` were within the range of those in the model data set from @Murdoch2018, leading to estimates of net error in a very similar range to the model dataset (Figure \@ref(fig:covariate-comparison)). However, some reaches did not meet the minimum thresholds of number of observed redds or number of weeks with at least one new redd observed, so we used the GAUC method in `r as.character(as.english(sum(redd_results$GAUC)))` out of  `r as.character(as.english(nrow(redd_results)))` reaches.
 
-HOR-C origin steelhead PIT-tagged at Priest Rapids dam were not detected in Libby Creek or at the Methow Fish Hatchery array this year, leading to estimates of zero spawners for those origins in those areas (Table \@ref(tab:spwn-area)). Because these estimates are based on a sample of the entire Upper Columbia steelhead run, it's possible that a low number of HOR-C steelhead may have spawned in those tributaries, but it's potentially more likely that the estimate of zero HOR-C steelhead spawners in those areas is correct.
+HOR-C origin steelhead PIT-tagged at Priest Rapids dam were not detected in Libby Creek this year, leading to estimates of zero spawners for those origins in that tributary (Table \@ref(tab:spwn-area)). Because these estimates are based on a sample of the entire Upper Columbia steelhead run, it's possible that a low number of HOR-C steelhead may have spawned in tat tributaries, but it's potentially more likely that the estimate of zero HOR-C steelhead spawners in those areas is correct.
 
 <!-- The estimates of high prespawn mortality in the lower mainstem of the Methow for hatchery fish could be accurate, but it should be noted that many of the redd surveys failed to observe a single redd in many of the reaches (Table \@ref(tab:redd-est-rch)). Without any observed redds, any estimate of net error is moot, as the adjusted redd estimate will still be zero. So if all the redds were missed in some of those reaches, the estimate of total spawners in the lower mainstem should be higher, leading to a lower estimate of prespawn mortality. It is unclear whether that actually occurred, or if there were actually no redds this year in those reaches. -->
 
