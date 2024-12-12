@@ -1,6 +1,6 @@
 ---
 title: "Estimates of Methow Steelhead Redds and Spawners"
-subtitle: "Spawn Year 2022"
+subtitle: "Spawn Year 2024"
 author:
   - Kevin See:
       email: Kevin.See@dfw.wa.gov
@@ -9,6 +9,7 @@ author:
 institute:
   - wdfw: Washington Department of Fish & Wildlife
 date: "`r format(Sys.time(), '%B %d, %Y')`"
+always_allow_html: true
 output: 
     wdfwTemplates::wdfw_html_format2:
       fig_caption: yes
@@ -19,20 +20,6 @@ output:
       toc_float:
         collapsed: yes
         smooth_scroll: yes
-      pandoc_args:
-      - --lua-filter=../templates/scholarly-metadata.lua
-      - --lua-filter=../templates/author-info-blocks.lua
-      - --lua-filter=../templates/pagebreak.lua
-    bookdown::html_document2:
-      fig_caption: yes
-      fig_height: 6
-      fig_width: 6
-      toc: yes
-      toc_depth: 3
-      toc_float:
-        collapsed: yes
-        smooth_scroll: yes
-      theme: simplex
       pandoc_args:
       - --lua-filter=../templates/scholarly-metadata.lua
       - --lua-filter=../templates/author-info-blocks.lua
@@ -53,17 +40,16 @@ output:
       fig_height: 4
       fig_width: 6
       toc: yes
-      reference_docx: "../templates/ReportTemplate.docx" # Insert path for the DOCX file
+      reference_docx: "../templates/WDFW Report Template.docx" # Insert path for the DOCX file
       pandoc_args:
       - --lua-filter=../templates/scholarly-metadata.lua
       - --lua-filter=../templates/author-info-blocks.lua
       - --lua-filter=../templates/pagebreak.lua
 bibliography:
-# - packages.bib
 - references.bib
 csl: "../templates/american-fisheries-society.csl" # Insert path for the bib-style
 abstract: |
-  This report contains estimates of total steelhead redds in the Methow, after accounting for observer error. It also includes estimates of spawners, as well as prespawn mortality.
+    This report contains estimates of total steelhead redds in the Methow, after accounting for observer error. It also includes estimates of spawners, as well as prespawn mortality.
 keywords: |
   keyword 1; keyword 2; keyword 3
 highlights: |
@@ -106,10 +92,11 @@ options(knitr.kable.NA = '-')
 # what kind of document is being created?
 doc.type <- knitr::opts_knit$get('rmarkdown.pandoc.to')
 
-if(doc.type == 'docx') {
-  options(knitr.table.format = "pandoc")
+if(!is.null(doc.type)) {
+  if(doc.type == 'docx') {
+    options(knitr.table.format = "pandoc")
+  }
 }
-
 ```
 
 ```{r package-bibtex, eval = F}
@@ -125,25 +112,19 @@ knitr::write_bib(c("tidyverse",
 
 ```{r load-data}
 # what year is this report for?
-yr = 2022
+yr = 2024
 # what species is this report for?
 spp = "Steelhead"
 # how many observers were on each survey?
 n_observers = "two"
 
 # query and prep data
-prep_met_sthd_data(query_year = yr,
-                   n_observers = n_observers,
-                   phos_data = "escapement",
-                   save_rda = F)
-
-# # load data for this year
-# load(here('analysis/data/derived_data',
-#           paste0('met_', yr, '.rda')))
-# 
-# # load data from model fitting
-# org_data = read_rds(here('analysis/data/derived_data/two_obs_original_data.rds'))
-# net_err_mod = read_rds(here('analysis/data/derived_data/two_obs_net_error_model.rds'))
+prep_uc_sthd_data(basin = "Methow",
+                  query_year = yr,
+                  n_observers = n_observers,
+                  phos_data = c("escapement",
+                                "tags")[2],
+                  save_rda = F)
 
 # load data from model fitting
 data("two_obs_sthd")
@@ -153,13 +134,6 @@ if(unique(year(redd_df$survey_date[!is.na(redd_df$survey_date)])) != yr) {
   print("Incorrect year")
 }
 
-# # how many fish removed this year?
-# data("removal_df")
-# rem_df = removal_df %>%
-#   filter(Subbasin == "Methow",
-#          Year == yr) %>%
-#   select(-Year,
-#          -Subbasin)
 ```
 
 ```{r calc-total-redds}
@@ -250,9 +224,9 @@ spwn_rch <-
   bind_rows(trib_spawners %>%
               # for tributary estimates, make any 0s NAs
               mutate(across(spawners:uci,
-                ~ if_else(spawners == 0 & spawners_se == 0,
-                          NA_real_,
-                          .))) %>%
+                            ~ if_else(spawners == 0 & spawners_se == 0,
+                                      NA_real_,
+                                      .))) %>%
               rename(spawners_SE = spawners_se) %>%
               pivot_wider(names_from = origin,
                           values_from = c(spawners,
@@ -352,10 +326,10 @@ low_met_spwn <- redd_results %>%
   rowwise() %>%
   mutate(spwn_est = redd_est * fpr,
          spwn_se = deltamethod(~ x1 * x2,
-                                   mean = c(redd_est,
-                                            fpr),
-                                   cov = diag(c(redd_se,
-                                                fpr_se)^2)),
+                               mean = c(redd_est,
+                                        fpr),
+                               cov = diag(c(redd_se,
+                                            fpr_se)^2)),
          est = redd_est * fpr * prop,
          se = deltamethod(~ x1 * x2 * x3,
                           mean = c(redd_est,
@@ -483,8 +457,8 @@ $$
 where $F_i$ is the number of redds the surveyor reported and $V_i$ is the true number of redds in the reach. Therefore, if we have an estimate of net error ($\hat{NE_i}$), we can calculate the true number of redds based on that estimate and the number of redds the surveyor reported:
 
 \begin{equation}
-  V_i = \frac{F_i}{\hat{NE_i}}
-  (\#eq:net-error)
+V_i = \frac{F_i}{\hat{NE_i}}
+(\#eq:net-error)
 \end{equation}
 
 The model for observer net error is fully described in @Murdoch2018. It uses covariates of the log of observer experience, mean discharge, the observed redd density and mean thalweg CV as a proxy for channel complexity. After normalizing these covariates, the model coefficients are shown in Table \@ref(tab:model-summ). The response, net error, is scaled such that estimates of net error less than 1 suggest more errors of omission, while estimates greater than 1 suggest more errors of commission. An estimate of net error equal to one would indicate the observed count equals the true number of redds.
@@ -501,9 +475,9 @@ print_mod_summ(species = spp,
                          "mean_thalweg_cv" = "Mean Thalweg CV",
                          "naive_density_km" = "Obs. Redd Density"))) |>
   arrange(desc(abs(Estimate))) |> 
-  kable(digits = 3,
-        booktabs = T,
-        caption = "Net error model covariates and coefficients.") %>%
+  kableExtra::kbl(digits = 3,
+                  booktabs = T,
+                  caption = "Net error model covariates and coefficients.") %>%
   kable_styling(bootstrap_options = c("striped", 
                                       "hover"),
                 latex_options = c("striped",
@@ -577,8 +551,8 @@ rem_df |>
               values_from = removed,
               values_fill = 0)  |> 
   clean_names("title") |> 
-  kable(caption = "Known number of fish removed at particular sites for surplus or broodstock, or due to harvest, by origin.",
-        booktabs = T) %>%
+  kableExtra::kbl(caption = "Known number of fish removed at particular sites for surplus or broodstock, or due to harvest, by origin.",
+                  booktabs = T) %>%
   kable_styling(bootstrap_options = c("striped", 
                                       "hover"),
                 latex_options = c("striped",
@@ -590,7 +564,7 @@ rem_df |>
 If either origin had a higher estimates of spawners compared to escapement, we fixed our prespawn mortality estimate at 0, reflecting a very low level of prespawn mortality. There is uncertainty in both the escapement and spawner estimates, which could explain why these types of scenarios could arise. 
 
 ```{r}
-ps_mort_met = escp_met %>%
+ps_mort_met = escp_est %>%
   filter(location == 'Methow_all') %>%
   left_join(rem_df %>%
               group_by(origin) %>%
@@ -636,7 +610,7 @@ ps_mort_met = escp_met %>%
                                   cov = diag(c(se, spwn_se)^2)),
          ps_mort_cv = ps_mort_se / ps_mort) %>%
   ungroup()
-  
+
 ```
 
 
@@ -665,10 +639,10 @@ redd_results %>%
          `Estimated Redds` = redd_est,
          `Std. Err. Redds` = redd_se,
          `Redds CV` = redd_cv) %>%
-  kable(digits = c(rep(NA, 3), rep(3, 2), 1, 1, 1, 3),
-        format.args = list(drop0trailing = T),
-        booktabs = T,
-        caption = "Estimates of mean net error and redds for each reach.") %>%
+  kableExtra::kbl(digits = c(rep(NA, 3), rep(3, 2), 1, 1, 1, 3),
+                  format.args = list(drop0trailing = T),
+                  booktabs = T,
+                  caption = "Estimates of mean net error and redds for each reach.") %>%
   kable_styling(bootstrap_options = c("striped", 
                                       "hover"),
                 latex_options = c("striped", 
@@ -735,10 +709,10 @@ summ_redd_tab %>%
   clean_names("title") |> 
   rename(`# Reaches` = `Number Reaches`,
          `Redds CV` = `Redds Cv`) |> 
-  kable(digits = c(rep(1, 6), 1, 3),
-        booktabs = T,
-        format.args = list(drop0trailing = T),
-        caption = "Estimate of redds in lower mainstem Methow, and any tributaries surveyed.") %>%
+  kableExtra::kbl(digits = c(rep(1, 6), 1, 3),
+                  booktabs = T,
+                  format.args = list(drop0trailing = T),
+                  caption = "Estimate of redds in lower mainstem Methow, and any tributaries surveyed.") %>%
   kable_styling(bootstrap_options = c("striped", 
                                       "hover"),
                 latex_options = c("striped",
@@ -759,10 +733,10 @@ summ_redd_tab %>%
 Demographic data about sex and origin were derived from the PIT tags detected within each area (Table \@ref(tab:pit-tag-tab). 
 
 ```{r pit-tag-tab}
-met_tags %>% 
+basin_tags %>% 
   mutate(across(mark_grp,
-                fct_recode,
-                "Natural" = "W")) %>%
+                ~ fct_recode(.,
+                             "Natural" = "W"))) %>%
   group_by(location, 
            sex, 
            mark_grp) %>% 
@@ -771,7 +745,7 @@ met_tags %>%
   pivot_wider(names_from = "mark_grp",
               values_from = n_tags,
               values_fill = 0) %>%
-  right_join(expand(met_tags %>%
+  right_join(expand(basin_tags %>%
                       mutate(across(location,
                                     fct_drop)), 
                     location, sex)) %>%
@@ -781,8 +755,8 @@ met_tags %>%
                 0)) %>%
   rename(Location = location,
          Sex = sex) %>%
-  kable(booktabs = T,
-        caption = "Number of PIT tags detected in each area by sex and origin.") %>%
+  kableExtra::kbl(booktabs = T,
+                  caption = "Number of PIT tags detected in each area by sex and origin.") %>%
   kable_styling(bootstrap_options = c("striped", "hover"),
                 latex_options = "striped")
 ```
@@ -796,10 +770,10 @@ fpr_df %>%
          starts_with("phos")) %>%
   filter(location %in% union(unique(redd_results$river),
                              unique(redd_results$location))) %>%
-  kable(digits = 3,
-        booktabs = T,
-        caption = "Fish per redd and hatchery origin proportion estimates for areas with redd counts.",
-        col.names = c('Area', 'Fish / redd', 'FpR Std. Error', 'Prop. Hatchery', 'Prop Std. Error')) %>%
+  kableExtra::kbl(digits = 3,
+                  booktabs = T,
+                  caption = "Fish per redd and hatchery origin proportion estimates for areas with redd counts.",
+                  col.names = c('Area', 'Fish / redd', 'FpR Std. Error', 'Prop. Hatchery', 'Prop Std. Error')) %>%
   kable_styling(bootstrap_options = c("striped", "hover"),
                 latex_options = c("striped",
                                   "HOLD_position"))
@@ -811,11 +785,11 @@ fpr_df %>%
          starts_with("fpr"),
          starts_with("phos")) %>%
   filter(!location %in% union(unique(redd_results$river),
-                             unique(redd_results$location))) %>%
-  kable(digits = 3,
-        booktabs = T,
-        caption = "Fish per redd and hatchery origin proportion estimates for areas without redd surveys.",
-        col.names = c('Area', 'Fish / redd', 'FpR Std. Error', 'Prop. Hatchery', 'Prop Std. Error')) %>%
+                              unique(redd_results$location))) %>%
+  kableExtra::kbl(digits = 3,
+                  booktabs = T,
+                  caption = "Fish per redd and hatchery origin proportion estimates for areas without redd surveys.",
+                  col.names = c('Area', 'Fish / redd', 'FpR Std. Error', 'Prop. Hatchery', 'Prop Std. Error')) %>%
   kable_styling(bootstrap_options = c("striped", "hover"),
                 latex_options = c("striped",
                                   "HOLD_position"))
@@ -873,8 +847,8 @@ low_met_spwn |>
          prnt_val) |>
   pivot_wider(names_from = group,
               values_from = prnt_val) |>
-  kable(caption = "Estimates (CV) of spawners in lower Methow by reach and origin.",
-        booktabs = T) |>
+  kableExtra::kbl(caption = "Estimates (CV) of spawners in lower Methow reaches by reach and origin.",
+                  booktabs = T) |>
   kable_styling(bootstrap_options = c("striped", "hover"),
                 latex_options = "striped") |>
   row_spec(row = n_distinct(low_met_spwn$reach),
@@ -904,8 +878,8 @@ spwn_strm |>
                                            sum),
                                     across(spwn_se,
                                            ~ sqrt(sum(.^2, na.rm = T)))))) |>
-    mutate(cv = se / est,
-           spwn_cv = spwn_se / spwn_est) |>
+  mutate(cv = se / est,
+         spwn_cv = spwn_se / spwn_est) |>
   mutate(across(c(spwn_est,
                   est),
                 round_half_up),
@@ -942,9 +916,9 @@ spwn_strm |>
   pivot_wider(names_from = group,
               values_from = prnt_val,
               names_sort = T) |>
-  kable(caption = "Estimates (CV) of spawners by area and origin.",
-        booktabs = T,
-        format.args = list(big.mark = ",")) |>
+  kableExtra::kbl(caption = "Estimates (CV) of spawners by area and origin.",
+                  booktabs = T,
+                  format.args = list(big.mark = ",")) |>
   kable_styling(bootstrap_options = c("striped", "hover"),
                 latex_options = "striped") |>
   row_spec(row = n_distinct(spwn_strm$river),
@@ -971,9 +945,9 @@ ps_mort_met %>%
          SE = ps_mort_se,
          CV = ps_mort_cv) %>%
   arrange(desc(Origin)) %>%
-  kable(digits = 3,
-        booktabs = T,
-        caption = "Methow prespawn mortality estimates. Includes estimates (standard error) of escapement, spawners, rate of prespawn mortality, and standard error of this rate, separated by origin.") %>%
+  kableExtra::kbl(digits = 3,
+                  booktabs = T,
+                  caption = "Methow prespawn mortality estimates. Includes estimates (standard error) of escapement, spawners, rate of prespawn mortality, and standard error of this rate, separated by origin.") %>%
   kable_styling(bootstrap_options = c("striped", "hover"),
                 latex_options = "striped")
 ```
@@ -990,7 +964,7 @@ Most of the covariates collected in `r yr` were within the range of those in the
 
 # Acknowledgements
 
-The data for this report was collected by Washington Department of Fish and Wildlife, and funded by Douglas County Public Utility District.
+The data for this report was collected by Washington Department of Fish and Wildlife and BioAnalysts, and funded by Douglas County Public Utility District.
 
 <!-- The following line inserts a page break  -->
 \newpage
@@ -1003,6 +977,10 @@ The data for this report was collected by Washington Department of Fish and Wild
 
 # (APPENDIX) Appendices {-} 
 
+\FloatBarrier
+
+# Appendix A
+
 # Sex Errors at Priest Rapids {#appendA}
 
 Fish collected for broodstock at various locations throughout the Upper Columbia (e.g. Wells Hatchery and within the Wenatchee) had a known sex. Based on PIT tag detections of this broodstock collection, those sexes could be compared with the sex call at Priest when the fish was initially tagged. Assuming that this error rate is systematic across the entire run within a brood year, we combined all tags with this kind of comparison. Table \@ref(tab:sex-err) shows the sample sizes and results. 
@@ -1011,15 +989,28 @@ These error rates were used to adjust the counts of male and female tags within 
 
 ```{r sex-err}
 # compile all years of sexing error rates
-read_excel("T:/DFW-Team FP Upper Columbia Escapement - General/UC_Sthd/estimates/UC_STHD_Model_Output.xlsx",
+read_excel(paste("T:/DFW-Team FP Upper Columbia Escapement - General/UC_Sthd/estimates",
+                 # "UC_STHD_Model_Output.xlsx",
+                 "UC_STHD_Model_Output_20241210.xlsx",
+                 sep = "/"),
            "Sex Error Rates") |> 
   rename(`Lower CI` = LCI,
          `Upper CI` = UCI) |> 
-  kable(digits = 3,
-        booktabs = T,
-        linesep = "",
-        caption = "Error rate in sex calls at Priest Rapids.") %>%
+  kableExtra::kbl(digits = 3,
+                  booktabs = T,
+                  linesep = "",
+                  caption = "Error rate in sex calls at Priest Rapids.") %>%
   kable_styling(latex_options = c("HOLD_position"))
 ```
+
+\newpage
+
+# Appendix B
+
+## Estimates of Steelhead at Priest Rapids Dam {#appendB}
+
+Counts at Priest Rapids dam were adjusted to estimate the number of unique steelhead by origin passing the dam. Since the tags used in the DABOM model are a random sample of the run, we partitioned the total window counts by origin using those tags. Columbia River Research [Data Access in Real Time](https://www.cbr.washington.edu/dart) built a custom query to summarize how many PIT tags were detected moving over Priest Rapids, and how many of them were detected making multiple journeys up the fish ladder. We used this to estimate the re-ascension rate for natural and hatchery origin fish, and multiplied the estimates of fish at Priest Rapids by one minus this re-ascension rate, leading us to estimates of unique dam passage by origin. 
+
+In some years, the counts at Priest Rapids dam have been unreliable (e.g. many more fish counted at the next upstream dam, Rock Island, than at Priest). In those circumstances, we have estimated the total steelhead by origin at Priest by starting with counts at Rock Island. We use the same method described above to estimate the number of unique dam crossings at Rock Island by origin. We use the DABOM tags detected at Rock Island or upstream to determine the proportion of hatchery and natural origin fish, and DART built a separate query to estimate the re-ascension rate at Rock Island. We then divide that estimate by the probability that a steelhead has moved from Priest Rapids to Rock Island dam (from the DABOM model), which is estimated separately for each origin, and that is our estimate of unique steelhead, by origin, that crossed Priest Rapids dam that year. 
 
 
