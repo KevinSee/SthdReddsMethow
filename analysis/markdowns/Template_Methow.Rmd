@@ -990,8 +990,7 @@ These error rates were used to adjust the counts of male and female tags within 
 ```{r sex-err}
 # compile all years of sexing error rates
 read_excel(paste("T:/DFW-Team FP Upper Columbia Escapement - General/UC_Sthd/estimates",
-                 # "UC_STHD_Model_Output.xlsx",
-                 "UC_STHD_Model_Output_20241210.xlsx",
+                 "UC_STHD_Model_Output.xlsx",
                  sep = "/"),
            "Sex Error Rates") |> 
   rename(`Lower CI` = LCI,
