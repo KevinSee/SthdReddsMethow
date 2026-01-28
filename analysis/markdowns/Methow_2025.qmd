@@ -1,73 +1,53 @@
 ---
 title: "Estimates of Methow Steelhead Redds and Spawners"
-subtitle: "Spawn Year 2023"
+subtitle: "Spawn Year 2025"
 author:
-  - Kevin See:
-      email: Kevin.See@dfw.wa.gov
-      institute: [wdfw]
-      correspondence: true
-institute:
-  - wdfw: Washington Department of Fish & Wildlife
-date: "`r format(Sys.time(), '%B %d, %Y')`"
-output: 
-    bookdown::pdf_document2:
-      fig_caption: yes
-      fig_height: 5
-      fig_width: 6
-      toc: yes
-      includes:
-        in_header: ../templates/header_wdfw.tex
-      pandoc_args:
-      - --lua-filter=../templates/scholarly-metadata.lua
-      - --lua-filter=../templates/author-info-blocks2.lua
-      - --lua-filter=../templates/pagebreak.lua
-    bookdown::word_document2:
-      fig_caption: yes
-      fig_height: 4
-      fig_width: 6
-      toc: yes
-      reference_docx: "../templates/WDFW Report Template.docx" # Insert path for the DOCX file
-      pandoc_args:
-      - --lua-filter=../templates/scholarly-metadata.lua
-      - --lua-filter=../templates/author-info-blocks.lua
-      - --lua-filter=../templates/pagebreak.lua
-    wdfwTemplates::wdfw_html_format2:
-      fig_caption: yes
-      fig_height: 6
-      fig_width: 6
-      toc: yes
-      toc_depth: 3
-      toc_float:
-        collapsed: yes
-        smooth_scroll: yes
-      pandoc_args:
-      - --lua-filter=../templates/scholarly-metadata.lua
-      - --lua-filter=../templates/author-info-blocks.lua
-      - --lua-filter=../templates/pagebreak.lua
+  - name: Kevin See
+    email: Kevin.See@dfw.wa.gov
+    affiliations:
+      - id: wdfw
+        name: Washington Department of Fish & Wildlife
+    corresponding: true
+date: today
+date-format: "MMMM D, YYYY"
 bibliography:
 - references.bib
 csl: "../templates/american-fisheries-society.csl" # Insert path for the bib-style
 abstract: |
-  This report contains estimates of total steelhead redds in the Methow, after accounting for observer error. It also includes estimates of spawners, as well as prespawn mortality.
-keywords: |
-  keyword 1; keyword 2; keyword 3
-highlights: |
-  These are the highlights.
+    This report contains estimates of total steelhead redds in the Methow, after accounting for observer error. It also includes estimates of spawners, as well as prespawn mortality.
+format:
+  pdf:
+    toc: true
+    include-in-header: ../templates/header_wdfw.tex
+    latex-extra-dependencies: ["placeins"]
+    fig-cap-location: bottom
+  html:
+    toc: true
+    toc-depth: 3
+    toc-float:
+      collapsed: yes
+      smooth-scroll: yes
+  docx:
+    toc: true
+    reference-doc: "../templates/WDFW Report Template.docx"
+    fig-cap-location: bottom
+crossref:
+  appendix-title: "Appendix"
+      
+
+execute:
+  echo: false
+  warning: false
+  message: false
+  collapse: true
+  comment: "#>"
+  fig-path: "../figures/"
+  dpi: 300
 ---
 
-```{r setup, echo = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  warning = FALSE,
-  message = FALSE,
-  echo = FALSE,
-  comment = "#>",
-  fig.path = "../figures/",
-  dpi = 300
-)
-```
+```{r}
+#| label: setup
 
-```{r packages}
 # load these packages
 library(tidyverse)
 library(lubridate)
@@ -78,7 +58,8 @@ library(sroem)
 library(here)
 library(readxl)
 library(knitr)
-library(kableExtra)
+# library(kableExtra)
+library(flextable)
 library(english)
 
 # set default plotting theme
@@ -87,15 +68,29 @@ theme_set(theme_bw())
 # knitr options
 options(knitr.kable.NA = '-')
 
-# when knitting to Word, use this
-# what kind of document is being created?
-doc.type <- knitr::opts_knit$get('rmarkdown.pandoc.to')
+# flextable default settings
+set_flextable_defaults(theme_fun = 
+                         function(ft) {
+                           ft |> 
+                             # theme_zebra(odd_header = "transparent") |> 
+                             theme_zebra(odd_header = "#1B305A",
+                                         odd_body = "transparent",
+                                         even_body = "#EFEFEF") |> 
+                             color(part = "header",
+                                   color = "#EFEFEF") |> 
+                             hline(part = "header")
+                         },
+                       # font.family = "Times",
+                       font.size = 10,
+                       float = "float",
+                       post_process_html = autofit)
+                       # post_process_all = autofit)
 
-if(!is.null(doc.type)) {
-  if(doc.type == 'docx') {
-    options(knitr.table.format = "pandoc")
-  }}
-
+# function to drop trailing zeros
+drop_trailing_zeros <- 
+  function(x) {
+    prettyNum(x, drop0trailing = TRUE)
+  }
 ```
 
 ```{r package-bibtex, eval = F}
@@ -109,9 +104,11 @@ knitr::write_bib(c("tidyverse",
 ```
 
 
-```{r load-data}
+```{r}
+#| label: load-data
+
 # what year is this report for?
-yr = 2023
+yr = 2025
 # what species is this report for?
 spp = "Steelhead"
 # how many observers were on each survey?
@@ -121,16 +118,9 @@ n_observers = "two"
 prep_uc_sthd_data(basin = "Methow",
                   query_year = yr,
                   n_observers = n_observers,
-                  phos_data = "escapement",
+                  phos_data = c("escapement",
+                                "tags")[2],
                   save_rda = F)
-
-# # load data for this year
-# load(here('analysis/data/derived_data',
-#           paste0('met_', yr, '.rda')))
-# 
-# # load data from model fitting
-# org_data = read_rds(here('analysis/data/derived_data/two_obs_original_data.rds'))
-# net_err_mod = read_rds(here('analysis/data/derived_data/two_obs_net_error_model.rds'))
 
 # load data from model fitting
 data("two_obs_sthd")
@@ -140,16 +130,11 @@ if(unique(year(redd_df$survey_date[!is.na(redd_df$survey_date)])) != yr) {
   print("Incorrect year")
 }
 
-# # how many fish removed this year?
-# data("removal_df")
-# rem_df = removal_df %>%
-#   filter(Subbasin == "Methow",
-#          Year == yr) %>%
-#   select(-Year,
-#          -Subbasin)
 ```
 
-```{r calc-total-redds}
+```{r}
+#| label: calc-total-redds
+
 #-------------------------------------
 # set some thresholds
 # minimum number of total redds observed
@@ -175,12 +160,10 @@ redd_results <- results_lst |>
           reach,
           index) %>%
   relocate(river, reach, location,
-           .before = 1) |>
-  # change where fish/redd etc. data comes from for reach MH1
-  mutate(across(location,
-                ~ case_when(. == "Tributaries" ~ as.character(river),
-                            reach == "MH1" ~ "Spring Creek",
-                            .default = .)))
+           .before = 1) |> 
+  mutate(location = if_else(location == "Tributaries",
+                            as.character(river),
+                            location))
 
 
 mainstm_est = results_lst |> 
@@ -195,7 +178,9 @@ mainstm_est = results_lst |>
 
 ```
 
-```{r spawner-estimate}
+```{r}
+#| label: spawner-estimate
+
 spwn_rch <-
   redd_results %>%
   select(river, location, reach, index, redd_est, redd_se) %>%
@@ -239,9 +224,9 @@ spwn_rch <-
   bind_rows(trib_spawners %>%
               # for tributary estimates, make any 0s NAs
               mutate(across(spawners:uci,
-                ~ if_else(spawners == 0 & spawners_se == 0,
-                          NA_real_,
-                          .))) %>%
+                            ~ if_else(spawners == 0 & spawners_se == 0,
+                                      NA_real_,
+                                      .))) %>%
               rename(spawners_SE = spawners_se) %>%
               pivot_wider(names_from = origin,
                           values_from = c(spawners,
@@ -337,15 +322,14 @@ low_met_spwn <- redd_results %>%
               select(location, starts_with('fpr')),
             by = "location") %>%
   left_join(grp_prop_lm,
-            by = "location",
-            relationship = "many-to-many") %>%
+            by = "location") %>%
   rowwise() %>%
   mutate(spwn_est = redd_est * fpr,
          spwn_se = deltamethod(~ x1 * x2,
-                                   mean = c(redd_est,
-                                            fpr),
-                                   cov = diag(c(redd_se,
-                                                fpr_se)^2)),
+                               mean = c(redd_est,
+                                        fpr),
+                               cov = diag(c(redd_se,
+                                            fpr_se)^2)),
          est = redd_est * fpr * prop,
          se = deltamethod(~ x1 * x2 * x3,
                           mean = c(redd_est,
@@ -446,9 +430,7 @@ spwn_strm <- low_met_spwn |>
           group)
 ```
 
-
-
-\newpage
+{{< pagebreak >}}
 
 # Introduction
 
@@ -472,14 +454,16 @@ $$
 
 where $F_i$ is the number of redds the surveyor reported and $V_i$ is the true number of redds in the reach. Therefore, if we have an estimate of net error ($\hat{NE_i}$), we can calculate the true number of redds based on that estimate and the number of redds the surveyor reported:
 
-\begin{equation}
-  V_i = \frac{F_i}{\hat{NE_i}}
-  (\#eq:net-error)
-\end{equation}
+$$
+V_i = \frac{F_i}{\hat{NE_i} + 1}
+$$ {#eq-net-error}
 
-The model for observer net error is fully described in @Murdoch2018. It uses covariates of the log of observer experience, mean discharge, the observed redd density and mean thalweg CV as a proxy for channel complexity. After normalizing these covariates, the model coefficients are shown in Table \@ref(tab:model-summ). The response, net error, is scaled such that estimates of net error less than 1 suggest more errors of omission, while estimates greater than 1 suggest more errors of commission. An estimate of net error equal to one would indicate the observed count equals the true number of redds.
+The model for observer net error is fully described in @Murdoch2018. It uses covariates of the log of observer experience, mean discharge, the observed redd density and mean thalweg CV as a proxy for channel complexity. After normalizing these covariates, the model coefficients are shown in @tbl-model-summ). The response, net error, is scaled such that estimates of net error less than 1 suggest more errors of omission, while estimates greater than 1 suggest more errors of commission. An estimate of net error equal to one would indicate the observed count equals the true number of redds.
 
-```{r model-summ}
+```{r}
+#| label: tbl-model-summ
+#| tbl-cap: Net error model covariates and coefficients.
+
 print_mod_summ(species = spp,
                num_obs = n_observers) |> 
   clean_names("title") |> 
@@ -491,20 +475,21 @@ print_mod_summ(species = spp,
                          "mean_thalweg_cv" = "Mean Thalweg CV",
                          "naive_density_km" = "Obs. Redd Density"))) |>
   arrange(desc(abs(Estimate))) |> 
-  kable(digits = 3,
-        booktabs = T,
-        caption = "Net error model covariates and coefficients.") %>%
-  kable_styling(bootstrap_options = c("striped", 
-                                      "hover"),
-                latex_options = c("striped",
-                                  "hold_position"))
+  flextable() |> 
+  colformat_double(j = -1,
+                   digits = 3) |> 
+  width(j = 1,
+        width = 1.5)
 ```
 
 ## Data
 
-Redd counts were conducted on a nearly weekly basis for index reaches, and once during the peak spawning period for non-index reaches. The covariates in the observer error model of @Murdoch2018 were collected during each survey. The covariate of mean thalweg CV was calculated based on all measurements taken within a reach across years (assuming this covariate does not vary through time within a reach). They were compared with the covariates contained in the model data set, as well as the estimates of net error (Figure \@ref(fig:covariate-comparison)). 
+Redd counts were conducted on a nearly weekly basis for index reaches, and once during the peak spawning period for non-index reaches. The covariates in the observer error model of @Murdoch2018 were collected during each survey. The covariate of mean thalweg CV was calculated based on all measurements taken within a reach across years (assuming this covariate does not vary through time within a reach). They were compared with the covariates contained in the model data set, as well as the estimates of net error (@fig-covariate-comparison). 
 
-```{r covariate-comparison, fig.cap = "Net error covariate values. Colors correspond to either the original study (Model Data) or the surveys where the model was used in this report (Predictive Data)."}
+```{r}
+#| label: fig-covariate-comparison
+#| fig-cap: Net error covariate values. Colors correspond to either the original study (Model Data) or the surveys where the model was used in this report (Predictive Data).
+
 redd_df |> 
   filter(visible_redds > 0) |>
   compare_covars(species = spp,
@@ -543,46 +528,59 @@ Those covariates in the observer error model were collected during each survey i
 
 Use of the GAUC methodology was limited to index reaches with a minimum of `r as.character(as.english(min_redds))` redds and at least `r as.character(as.english(min_non0_wks))` weeks with at least one new redd found. For those reaches, we used the method described in @Millar2012 and @Murdoch2018. The GAUC model was developed with spawner counts in mind. As it is usually infeasible to mark every individual spawner, only total spawner counts can be used, and an estimate of average stream life must be utilized to translate total spawner days to total unique spawners. However, in adapting this for redd surveys, we note that individual redds can be marked, and therefore the GAUC model can be fit to new redds only. The equivalent of stream life is thus the difference between survey numbers, which can be fixed at 1. We applied the average net error from all the surveys when redds were visible, so as to not bias the estimate from early weeks when no redds were found, and the observed redd density was zero.
 
-For non-index reaches, which were surveyed only once during peak spawning, the estimate of total redds was calculated by dividing the observed redds by the estimate of net error associated with that survey (Eq. \@ref(eq:net-error)). This assumes that no redds were washed out before the non-index survey, and that no new redds appeared after that survey. As the number of redds observed in the non-index reaches ranged from `r paste(range(redd_df$new_redds[redd_df$index == 'N']), collapse = ' to ')`, any violation of this assumption should not affect the overall estimates very much. Any index reaches that did not meet the thresholds described above were treated as non-index reaches, and the total observed redds in those reaches were divided by the mean estimate of net error for each reach.
+For non-index reaches, which were surveyed only once during peak spawning, the estimate of total redds was calculated by dividing the observed redds by the estimate of net error associated with that survey (@eq-net-error). This assumes that no redds were washed out before the non-index survey, and that no new redds appeared after that survey. As the number of redds observed in the non-index reaches ranged from `r paste(range(redd_df$new_redds[redd_df$index == 'N']), collapse = ' to ')`, any violation of this assumption should not affect the overall estimates very much. Any index reaches that did not meet the thresholds described above were treated as non-index reaches, and the total observed redds in those reaches were divided by the mean estimate of net error for each reach.
 
 When summing reach-scale estimates to obtain estimates at the stream scale, an attempt was made to incorporate the fact that the reaches within a stream are not independent. Estimates of correlation between the reaches within a stream were made based on weekly observed redds. This method may not be perfect, since spawners could use certain reaches preferentially at different times in the season, but it may be the best we can do. Because correlations are often quite high between reaches, this is a better alternative than to naively assume the standard errors between reaches are independent of one another. These correlation estimates were combined with estimates of standard error at the reach scale to calculate a covariance matrix for the reaches within each stream, which was used when summing estimates of total redds to estimate the standard error at the stream scale. Failure to incorporate the correlations between reaches would result in an underestimate of standard error at the stream scales. Different streams (and therefore reaches in different streams) were assumed to be independent.
 
 ## Estimating Spawners
 
-Estimates of escapement to various tributaries in the Methow were made using a Dam Adult Branch Occupancy Model (DABOM) [@Waterhouse2020] based on PIT tag detections of fish tagged at Priest Rapids dam. All fish that escaped to the various tributaries were assumed to be spawners (i.e. prespawn mortality only occurs in the mainstem). Reaches below the PIT tag arrays in some tributaries were surveyed for redds, but we assumed there was no observer error in those reaches.
+Estimates of escapement to various tributaries in the Methow were made using a Dam Adult Branch Occupancy Model (DABOM) [@Waterhouse2020] based on PIT tag detections of fish tagged at Priest Rapids Dam. All fish that escaped to the various tributaries were assumed to be spawners (i.e. prespawn mortality only occurs in the mainstem). Reaches below the PIT tag arrays in some tributaries were surveyed for redds, but we assumed there was no observer error in those reaches.
 
 To convert estimates of redds in mainstem areas into estimates of natural and hatchery spawners, the estimates of redds were multiplied by a fish per redd (FpR) estimate and then by the proportion of hatchery or wild fish. The fish per redd estimate was based on PIT tags from the branching patch-occupancy model observed to move into the lower mainstem Methow, but not into tributaries (between PTAGIS sites LMR and MRW). FpR was calculated as the ratio of male to female fish, plus 1. Reaches MRW1 - MRW8 are all in the lower mainstem Methow below Winthrop. Similarly, the proportion of hatchery and natural origin fish was calculated from the same group of PIT tags for areas in the mainstem, and the various tributaries. For reaches in tributaries below the tributary PIT tag array, FpR and the proportion hatchery were calculated based on observed PIT tags moving into the lower regions of each tributary. For the reach just below the Methow hatchery outfall, we used FpR and pHOS from Spring Creek (SCP), because they are both hatchery channels of a similar water source in close proximity to each other.
 
 Hatchery fish were further divided into safety net (HOS-SN) and conservation (HOS-C) groups. The safety net group was defined as hatchery fish with an adipose fin clip but no coded wire tag (CWT), whereas the conservation group was defined as having a CWT. Therefore, for each spatial area, fish could be placed in one of three groups. For mainstem reaches where redd surveys were conducted, the total spawners were divided into those three groups (NOS, HOS-SN and HOS-C) based on proportions of observed PIT tags. For tributaries with existing estimates of natural origin and hatchery spawners, the hatchery spawners were divided into HOS-SN and HOS-C groups, again based on proportions from observed hatchery PIT tags. 
 
-For `r yr`, we noticed a discrepancy in the sex calls at Priest Rapids and the sex calls from broodstock collection at Wells Hatchery and in the Wenatchee. Therefore, we developed a correction factor that accounts for the error rate in female and male calls independently, and adjusts the fish / redd estimate accordingly. The error rate of sex calls at Priest are shown in Appendix \@ref(appendA) in Table \@ref(tab:sex-err).
+In some years, we have noticed a discrepancy in the sex calls at Priest Rapids Dam and the sex calls from broodstock collection at Wells Hatchery and in the Wenatchee. Therefore, we developed a correction factor that accounts for the error rate in female and male calls independently, and adjusts the fish / redd estimate accordingly. The error rate of sex calls at Priest Rapids Dam are shown in Appendix A (@tbl-sex-err).
 
 ## Prespawn Mortality
 
-After translating estimates of redds to estimates of spawners by origin, we can then compare the spawner estimates to escapement estimates made using PIT tags, and estimate a prespawn mortality rate. Taking the total PIT-tag based escapement estimate, by origin, to the Methow, we then subtract any fish removed for broodstock or surplus, as well as any deaths due to harvest (Table \@ref(tab:removals)), and then subtract the total estimate of spawners, including the tributaries, to provide an estimate of how many fish succumbed to prespawn mortality. Dividing that number by the total escapement estimate provides an estimate of the prespawn mortality rate, by origin, across the entire Methow population. 
+After translating estimates of redds to estimates of spawners by origin, we can then compare the spawner estimates to escapement estimates made using PIT tags, and estimate a prespawn mortality rate. Taking the total PIT-tag based escapement estimate, by origin, to the Methow, we then subtract any fish removed for broodstock or surplus, as well as any deaths due to harvest (@tbl-removals)), and then subtract the total estimate of spawners, including the tributaries, to provide an estimate of how many fish succumbed to prespawn mortality. Dividing that number by the total escapement estimate provides an estimate of the prespawn mortality rate, by origin, across the entire Methow population. 
 
-```{r removals}
-rem_df |> 
+```{r}
+#| label: tbl-removals
+#| tbl-cap: Known number of fish removed at particular sites or due to harvest, by origin.
+
+rem_df |>
+  filter(removed > 0) |> 
+  mutate(across(spawn_year,
+                as_factor)) |> 
   pivot_wider(names_from = origin, 
               values_from = removed,
               values_fill = 0)  |> 
   clean_names("title") |> 
-  kable(caption = "Known number of fish removed at particular sites for surplus or broodstock, or due to harvest, by origin.",
-        booktabs = T) %>%
-  kable_styling(bootstrap_options = c("striped", 
-                                      "hover"),
-                latex_options = c("striped",
-                                  "scale_down")) |> 
-  column_spec(c(2:4),
-              width = "1in")
+  flextable() |> 
+  width(j = c(1,2),
+        width = 0.5) |> 
+  width(j = 3:5,
+        width = 1.2) |> 
+  # width(j = 4,
+  #       width = 1.2) |> 
+  width(j = c(6, 7),
+        width = 0.7) |> 
+  autofit() |> 
+  fit_to_width(max_width = 6)
 ```
 
 If either origin had a higher estimates of spawners compared to escapement, we fixed our prespawn mortality estimate at 0, reflecting a very low level of prespawn mortality. There is uncertainty in both the escapement and spawner estimates, which could explain why these types of scenarios could arise. 
 
 ```{r}
-ps_mort_met = escp_est %>%
+#| label: pre-spawn-mortality
+
+ps_mort_met <-
+  escp_est %>%
   filter(location == 'Methow_all') %>%
   left_join(rem_df %>%
+              filter(source != "Harvest") |> 
               group_by(origin) %>%
               summarize(across(removed,
                                sum),
@@ -626,19 +624,22 @@ ps_mort_met = escp_est %>%
                                   cov = diag(c(se, spwn_se)^2)),
          ps_mort_cv = ps_mort_se / ps_mort) %>%
   ungroup()
-  
+
 ```
 
-
-\newpage
+\FloatBarrier
 
 # Results
 
 ## Redd estimates
 
-The estimated net error, observed redds and estimates of redds at the reach scale are shown in Table \@ref(tab:redd-est-rch). Plots of the new redds and the GAUC fit to those data are shown in Figure \@ref(fig:gauc-plots). The results are summarized by major areas and population scale in Table \@ref(tab:redd-est-strm). 
+The estimated net error, observed redds and estimates of redds at the reach scale are shown in @tbl-redd-est-rch. Plots of the new redds and the GAUC fit to those data are shown in @fig-gauc-plots. The results are summarized by major areas and population scale in @tbl-redd-est-strm. 
 
-```{r redd-est-rch}
+```{r}
+#| label: tbl-redd-est-rch
+#| tbl-cap: Estimates of mean net error and redds for each reach.
+#| tbl-pos: "!ht"
+
 redd_results %>%
   mutate(Type = recode(index,
                        "Y" = 'Index',
@@ -655,21 +656,31 @@ redd_results %>%
          `Estimated Redds` = redd_est,
          `Std. Err. Redds` = redd_se,
          `Redds CV` = redd_cv) %>%
-  kable(digits = c(rep(NA, 3), rep(3, 2), 1, 1, 1, 3),
-        format.args = list(drop0trailing = T),
-        booktabs = T,
-        caption = "Estimates of mean net error and redds for each reach.") %>%
-  kable_styling(bootstrap_options = c("striped", 
-                                      "hover"),
-                latex_options = c("striped", 
-                                  "hold_position",
-                                  "scale_down",
-                                  "repeat_header")) |> 
-  column_spec(column = c(4:9),
-              width = "0.5in")
+  flextable() |> 
+  colformat_double(j = c(4, 5),
+                   digits = 3) |> 
+  colformat_double(j = c(6, 7),
+                   digits = 0) |> 
+  colformat_double(j = 8,
+                   digits = 1) |> 
+  colformat_double(j = 9,
+                   digits = 3) |> 
+  set_formatter(value = drop_trailing_zeros) |> 
+  width(j = c(1, 3),
+        width = 1) |> 
+  width(j = 2,
+        width = 0.6) |> 
+  width(j = c(4:9),
+        width = 0.6,
+        unit = "in") |> 
+  autofit() |> 
+  fit_to_width(max_width = 6)
 ```
 
-```{r gauc-plots, fig.cap = "Plots of observed redd counts (black dots) through time for each qualifying index reach, and the fitted curve from the GAUC model (blue line) with associated uncertainty (gray)."}
+```{r}
+#| label: fig-gauc-plots
+#| fig-cap: Plots of observed redd counts (black dots) through time for each qualifying index reach, and the fitted curve from the GAUC model (blue line) with associated uncertainty (gray).
+
 redd_results %>%
   filter(GAUC,
          correct_curve) %>%
@@ -698,8 +709,13 @@ redd_results %>%
 
 ```
 
-```{r redd-est-strm}
-summ_redd_tab = results_lst$summ_est %>%
+```{r}
+#| label: tbl-redd-est-strm
+#| tbl-cap: Estimate of redds in mainstem Wenatchee, above and below Tumwater Dam, and any tributaries surveyed.
+#| tbl-pos: "!ht"
+
+summ_redd_tab <-
+  results_lst$summ_est %>%
   select(-data,
          -cor_mat,
          -strm_se_naive) %>%
@@ -725,30 +741,34 @@ summ_redd_tab %>%
   clean_names("title") |> 
   rename(`# Reaches` = `Number Reaches`,
          `Redds CV` = `Redds Cv`) |> 
-  kable(digits = c(rep(1, 6), 1, 3),
-        booktabs = T,
-        format.args = list(drop0trailing = T),
-        caption = "Estimate of redds in lower mainstem Methow, and any tributaries surveyed.") %>%
-  kable_styling(bootstrap_options = c("striped", 
-                                      "hover"),
-                latex_options = c("striped",
-                                  "HOLD_position",
-                                  "scale_down")) %>%
-  row_spec(row = nrow(summ_redd_tab) - 1,
-           hline_after = T) %>%
-  row_spec(row = nrow(summ_redd_tab), 
-           bold = T) |> 
-  column_spec(column = 3,
-              width = "1in") |> 
-  column_spec(column = c(4:8),
-              width = "0.5in")
+  flextable() |> 
+  colformat_double(j = c(1:6),
+                   digits = 0) |> 
+  colformat_double(j = 7,
+                   digits = 1) |> 
+  colformat_double(j = 8,
+                   digits = 3) |> 
+  set_formatter(value = drop_trailing_zeros) |> 
+  bold(i = nrow(summ_redd_tab)) |> 
+  width(j = c(1,3),
+        width = 1) |>
+  width(j = 2,
+        width = 0.6) |> 
+  width(j = 4:8,
+        width = 0.7) |> 
+  autofit() |> 
+  fit_to_width(max_width = 6.5)
 ```
 
 ## Spawner Estimates
 
-Demographic data about sex and origin were derived from the PIT tags detected within each area (Table \@ref(tab:pit-tag-tab). 
+Demographic data about sex and origin were derived from the PIT tags detected within each area (@tbl-pit-tag-tab). 
 
 ```{r pit-tag-tab}
+#| label: tbl-pit-tag-tab
+#| tbl-cap: Number of PIT tags detected in each area by sex and origin.
+#| tbl-pos: "!ht"
+
 basin_tags %>% 
   mutate(across(mark_grp,
                 ~ fct_recode(.,
@@ -764,56 +784,82 @@ basin_tags %>%
   right_join(expand(basin_tags %>%
                       mutate(across(location,
                                     fct_drop)), 
-                    location, sex)) %>%
+                    location, sex),
+             by = join_by(location, sex)) %>%
   arrange(location, sex) %>%
   mutate(across(c(Natural:`HOR-C`),
                 replace_na,
                 0)) %>%
   rename(Location = location,
          Sex = sex) %>%
-  kable(booktabs = T,
-        caption = "Number of PIT tags detected in each area by sex and origin.") %>%
-  kable_styling(bootstrap_options = c("striped", "hover"),
-                latex_options = "striped")
+  flextable() |> 
+  width(j = 1,
+        width = 1.5)
 ```
 
-Parameter estimates for fish / redd and proportion hatchery based on this PIT tag data are shown in Tables \@ref(tab:fpr-hatch-prop) (for areas with redd data) and \@ref(tab:fpr-hatch-prop-other) (for other areas). Fish / redd estimates in Table \@ref(tab:fpr-hatch-prop-other) are not used in the analyses presented here, but the results are made available. 
+Parameter estimates for fish / redd and proportion hatchery based on this PIT tag data are shown in @tbl-fpr-hatch-prop (for areas with redd data) and @tbl-fpr-hatch-prop-other (for other areas). Fish / redd estimates in @tbl-fpr-hatch-prop-other are not used in the analyses presented here, but the results are made available. 
 
-```{r fpr-hatch-prop}
+```{r}
+#| label: tbl-fpr-hatch-prop
+#| tbl-cap: Fish per redd and hatchery origin proportion estimates.
+#| tbl-pos: "!ht"
+
 fpr_df %>%
   select(location, 
          starts_with("fpr"),
          starts_with("phos")) %>%
   filter(location %in% union(unique(redd_results$river),
                              unique(redd_results$location))) %>%
-  kable(digits = 3,
-        booktabs = T,
-        caption = "Fish per redd and hatchery origin proportion estimates for areas with redd counts.",
-        col.names = c('Area', 'Fish / redd', 'FpR Std. Error', 'Prop. Hatchery', 'Prop Std. Error')) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"),
-                latex_options = c("striped",
-                                  "HOLD_position"))
+  flextable() |> 
+  set_header_labels(location = "Area",
+                    fpr = "Fish / Redd",
+                    fpr_se = "FpR Std. Error",
+                    phos = "Prop. Hatchery",
+                    phos_se = "Prop Std. Error") |> 
+  colformat_double(j = -1,
+                   digits = 3) |> 
+  width(j = 1,
+        width = 1.5) |> 
+  width(j = 2:5,
+        width = 0.8) |> 
+  autofit() |> 
+  fit_to_width(max_width = 6)
 ```
 
-```{r fpr-hatch-prop-other}
+```{r}
+#| label: tbl-fpr-hatch-prop-other
+#| tbl-cap: Fish per redd and hatchery origin proportion estimates for areas without redd surveys.
+#| tbl-pos: "!ht"
+
 fpr_df %>%
+  filter(!location %in% union(unique(redd_results$river),
+                              unique(redd_results$location))) %>%
   select(location, 
          starts_with("fpr"),
          starts_with("phos")) %>%
-  filter(!location %in% union(unique(redd_results$river),
-                             unique(redd_results$location))) %>%
-  kable(digits = 3,
-        booktabs = T,
-        caption = "Fish per redd and hatchery origin proportion estimates for areas without redd surveys.",
-        col.names = c('Area', 'Fish / redd', 'FpR Std. Error', 'Prop. Hatchery', 'Prop Std. Error')) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"),
-                latex_options = c("striped",
-                                  "HOLD_position"))
+  flextable() |> 
+  set_header_labels(location = "Area",
+                    fpr = "Fish / Redd",
+                    fpr_se = "FpR Std. Error",
+                    phos = "Prop. Hatchery",
+                    phos_se = "Prop Std. Error") |> 
+  colformat_double(j = -1,
+                   digits = 3) |> 
+  width(j = 1,
+        width = 1.5) |> 
+  width(j = 2:5,
+        width = 0.8) |> 
+  autofit() |> 
+  fit_to_width(max_width = 6)
 ```
 
-Table \@ref(tab:spawn-est) shows estimates of spawners by origin within each reach of the lower Methow, including reaches in tributaries below the PIT tag array. Combining those adjusted redd-based estimates of spawners with PIT tag-based estimates of spawners in the tributaries, Table \@ref(tab:spwn-area) shows a summary of spawners by origin across various areas including the lower Methow mainstem and each tributary, as well as the population as a whole.
+@tbl-spawn-est shows estimates of spawners by origin within each reach of the lower Methow, including reaches in tributaries below the PIT tag array. Combining those adjusted redd-based estimates of spawners with PIT tag-based estimates of spawners in the tributaries, @tbl-spwn-area shows a summary of spawners by origin across various areas including the lower Methow mainstem and each tributary, as well as the population as a whole.
 
-```{r spawn-est}
+```{r}
+#| label: tbl-spawn-est
+#| tbl-cap: "Estimates (CV) of spawners in lower Methow reaches by reach and origin."
+#| tbl-pos: "!Ht"
+
 low_met_spwn |>
   select(-location) |>
   mutate(across(river,
@@ -863,18 +909,24 @@ low_met_spwn |>
          prnt_val) |>
   pivot_wider(names_from = group,
               values_from = prnt_val) |>
-  kable(caption = "Estimates (CV) of spawners in lower Methow by reach and origin.",
-        booktabs = T) |>
-  kable_styling(bootstrap_options = c("striped", "hover"),
-                latex_options = "striped") |>
-  row_spec(row = n_distinct(low_met_spwn$reach),
-           hline_after = T) |>
-  row_spec(row = n_distinct(low_met_spwn$reach) + 1, 
-           bold = T)
+  flextable() |> 
+  # set_table_properties(opts_pdf = list(table.env = "longtable")) |> 
+  flextable::bold(i = n_distinct(low_met_spwn$reach) + 1) |> 
+  width(j = 1,
+        width = 1) |> 
+  width(j = 2,
+        width = 1.5) |> 
+  width(j = 5:7,
+        width = 1) |> 
+  autofit() |> 
+  fit_to_width(max_width = 6)
 ```
 
 
-```{r spwn-area}
+```{r}
+#| label: tbl-spwn-area
+#| tbl-cap: "Estimates (CV) of spawners by area and origin."
+
 spwn_strm |>
   bind_rows(spwn_strm |>
               mutate(across(est,
@@ -894,8 +946,8 @@ spwn_strm |>
                                            sum),
                                     across(spwn_se,
                                            ~ sqrt(sum(.^2, na.rm = T)))))) |>
-    mutate(cv = se / est,
-           spwn_cv = spwn_se / spwn_est) |>
+  mutate(cv = se / est,
+         spwn_cv = spwn_se / spwn_est) |>
   mutate(across(c(spwn_est,
                   est),
                 round_half_up),
@@ -932,23 +984,22 @@ spwn_strm |>
   pivot_wider(names_from = group,
               values_from = prnt_val,
               names_sort = T) |>
-  kable(caption = "Estimates (CV) of spawners by area and origin.",
-        booktabs = T,
-        format.args = list(big.mark = ",")) |>
-  kable_styling(bootstrap_options = c("striped", "hover"),
-                latex_options = "striped") |>
-  row_spec(row = n_distinct(spwn_strm$river),
-           hline_after = T) |>
-  row_spec(row = n_distinct(spwn_strm$river) + 1, 
-           bold = T)
+  flextable() |> 
+  width(j = 1:4,
+        width = 1.5) |> 
+  bold(i = n_distinct(spwn_strm$river) + 1)
 ```
 
 
 ## Prespawn Mortality
 
-The estimates of overall prespawn mortality within the Methow population, by origin, are shown in Table \@ref(tab:ps-mort-met). 
+The estimates of overall prespawn mortality within the Methow population, by origin, are shown in @tbl-ps-mort-met. 
 
-```{r ps-mort-met}
+```{r}
+#| label: tbl-ps-mort-met
+#| tbl-cap: Methow prespawn mortality estimates. Includes estimates (standard error) of escapement, spawners, rate of prespawn mortality, and standard error of this rate, separated by origin.
+#| tbl-pos: "!ht"
+
 ps_mort_met %>%
   mutate(Escapement = paste0(round_half_up(escp), ' (', round_half_up(se), ')'),
          Spawners = paste0(round_half_up(spwn_est), ' (', round_half_up(spwn_se), ')')) %>%
@@ -961,45 +1012,52 @@ ps_mort_met %>%
          SE = ps_mort_se,
          CV = ps_mort_cv) %>%
   arrange(desc(Origin)) %>%
-  kable(digits = 3,
-        booktabs = T,
-        caption = "Methow prespawn mortality estimates. Includes estimates (standard error) of escapement, spawners, rate of prespawn mortality, and standard error of this rate, separated by origin.") %>%
-  kable_styling(bootstrap_options = c("striped", "hover"),
-                latex_options = "striped")
+  flextable() |> 
+  colformat_double(j = c(4:6),
+                   digits = 3) |> 
+  width(j = 1:5,
+        width = 1) |> 
+  autofit() |> 
+  fit_to_width(max_width = 6)
 ```
 
 # Discussion
 
-Most of the covariates collected in `r yr` were within the range of those in the model data set from @Murdoch2018, leading to estimates of net error in a very similar range to the model dataset (Figure \@ref(fig:covariate-comparison)). However, some reaches did not meet the minimum thresholds of number of observed redds or number of weeks with at least one new redd observed, so we used the GAUC method in `r as.character(as.english(sum(redd_results$GAUC)))` out of  `r as.character(as.english(nrow(redd_results)))` reaches.
+Most of the covariates collected in `r yr` were within the range of those in the model data set from @Murdoch2018, leading to estimates of net error in a very similar range to the model dataset (@fig-covariate-comparison). However, some reaches did not meet the minimum thresholds of number of observed redds or number of weeks with at least one new redd observed, so we used the GAUC method in `r as.character(as.english(sum(redd_results$GAUC)))` out of  `r as.character(as.english(nrow(redd_results)))` reaches.
 
-HOR-C origin steelhead PIT-tagged at Priest Rapids dam were not detected in Libby Creek this year, leading to estimates of zero spawners for those origins in that tributary (Table \@ref(tab:spwn-area)). Because these estimates are based on a sample of the entire Upper Columbia steelhead run, it's possible that a low number of HOR-C steelhead may have spawned in tat tributaries, but it's potentially more likely that the estimate of zero HOR-C steelhead spawners in those areas is correct.
+<!-- Natural origin steelhead PIT-tagged at Priest Rapids Dam were not detected in Libby Creek this year, nor were HOR-C fish detected in Gold, Libby or the Upper Methow, leading to estimates of zero spawners for those origins in those tributaries (@tbl-spwn-area). Because these estimates are based on a sample of the entire Upper Columbia steelhead run, it's possible that a low number of steelhead may have spawned in those tributaries, but it's potentially more likely that the estimate of zero steelhead spawners in those areas is correct. -->
 
-<!-- The estimates of high prespawn mortality in the lower mainstem of the Methow for hatchery fish could be accurate, but it should be noted that many of the redd surveys failed to observe a single redd in many of the reaches (Table \@ref(tab:redd-est-rch)). Without any observed redds, any estimate of net error is moot, as the adjusted redd estimate will still be zero. So if all the redds were missed in some of those reaches, the estimate of total spawners in the lower mainstem should be higher, leading to a lower estimate of prespawn mortality. It is unclear whether that actually occurred, or if there were actually no redds this year in those reaches. -->
+<!-- The estimates of high prespawn mortality in the lower mainstem of the Methow for hatchery fish could be accurate, but it should be noted that many of the redd surveys failed to observe a single redd in many of the reaches (@tbl-redd-est-rch). Without any observed redds, any estimate of net error is moot, as the adjusted redd estimate will still be zero. So if all the redds were missed in some of those reaches, the estimate of total spawners in the lower mainstem should be higher, leading to a lower estimate of prespawn mortality. It is unclear whether that actually occurred, or if there were actually no redds this year in those reaches. -->
 
 <!-- Some of the estimates of prespawn mortality were zero this year, due to higher estimates of spawners compared to escapement, at least after removals had been accounted for. In all cases, there were overlapping confidence intervals between spawners and escapement, so not too much should be made of that fact, and we interpret that as at least very low levels of prespawn mortality, perhaps even none. -->
 
 # Acknowledgements
 
-The data for this report was collected by Washington Department of Fish and Wildlife, and funded by Douglas County Public Utility District.
+The data for this report was collected by Washington Department of Fish and Wildlife and BioAnalysts, and funded by Douglas County Public Utility District.
 
 <!-- The following line inserts a page break  -->
-\newpage
+{{< pagebreak >}}
 
-# References 
+# Literature cited
+
 <!-- The following line ensures the references appear here for the MS Word or HTML output files, rather than right at the end of the document (this will not work for PDF files):  -->
-<div id="refs"></div>
 
-\newpage
+::: {#refs}
+:::
 
-# (APPENDIX) Appendices {-} 
+{{< pagebreak >}}
 
-# Sex Errors at Priest Rapids {#appendA}
+# Appendix A: Sex Errors at Priest Rapids Dam {#sec-appendix-a}
 
-Fish collected for broodstock at various locations throughout the Upper Columbia (e.g. Wells Hatchery and within the Wenatchee) had a known sex. Based on PIT tag detections of this broodstock collection, those sexes could be compared with the sex call at Priest when the fish was initially tagged. Assuming that this error rate is systematic across the entire run within a brood year, we combined all tags with this kind of comparison. Table \@ref(tab:sex-err) shows the sample sizes and results. 
+Fish collected for broodstock at various locations throughout the Upper Columbia (e.g. Wells Hatchery and within the Wenatchee) had a known sex. Based on PIT tag detections of this broodstock collection, those sexes could be compared with the sex call at Priest Rapids Dam when the fish was initially tagged. Assuming that this error rate is systematic across the entire run within a brood year, we combined all tags with this kind of comparison. (@tbl-sex-err) shows the sample sizes and results.
 
-These error rates were used to adjust the counts of male and female tags within particular spawning areas before re-calculating the fish/redd estimate. For example, the adjusted number of males would be the initial number of males, minus the number of initial males times the error rate for male identification, plus the number of initial females times the error rate for female identification. 
+These error rates were used to adjust the counts of male and female tags within particular spawning areas before re-calculating the fish/redd estimate. For example, the adjusted number of males would be the initial number of males, minus the number of initial males times the error rate for male identification, plus the number of initial females times the error rate for female identification.
 
-```{r sex-err}
+```{r}
+#| label: tbl-sex-err
+#| tbl-cap: Error rate in sex calls at Priest Rapids Dam.
+#| tbl-pos: "!ht"
+
 # compile all years of sexing error rates
 read_excel(paste("T:/DFW-Team FP Upper Columbia Escapement - General/UC_Sthd/estimates",
                  "UC_STHD_Model_Output.xlsx",
@@ -1007,11 +1065,22 @@ read_excel(paste("T:/DFW-Team FP Upper Columbia Escapement - General/UC_Sthd/est
            "Sex Error Rates") |> 
   rename(`Lower CI` = LCI,
          `Upper CI` = UCI) |> 
-  kableExtra::kbl(digits = 3,
-                  booktabs = T,
-                  linesep = "",
-                  caption = "Error rate in sex calls at Priest Rapids.") %>%
-  kable_styling(latex_options = c("HOLD_position"))
+  mutate(across(ends_with("Year"),
+                as.factor)) |> 
+  flextable() |> 
+  colformat_double(j = 6:9,
+                   digits = 3) |> 
+  width(j = 2,
+        width = 0.4) |> 
+  autofit() |> 
+  fit_to_width(max_width = 6)
 ```
 
+{{< pagebreak >}}
+
+# Appendix B: Estimates of Steelhead at Priest Rapids Dam {#sec-appendix-b}
+
+Counts at Priest Rapids Dam were adjusted to estimate the number of unique steelhead by origin passing the dam. Since the tags used in the DABOM model are a random sample of the run, we partitioned the total window counts by origin using those tags. Columbia River Research [Data Access in Real Time](https://www.cbr.washington.edu/dart) built a custom query to summarize how many PIT tags were detected moving over Priest Rapids Dam, and how many of them were detected making multiple journeys up the fish ladder. We used this to estimate the re-ascension rate for natural and hatchery origin fish, and multiplied the estimates of fish at Priest Rapids Dam by one minus this re-ascension rate, leading us to estimates of unique dam passage by origin.
+
+In some years, the counts at Priest Rapids Dam have been unreliable (e.g. many more fish counted at the next upstream dam, Rock Island Dam, than at Priest Rapids Dam). In those circumstances, we have estimated the total steelhead by origin at Priest Rapids Dam by starting with counts at Rock Island. We use the same method described above to estimate the number of unique dam crossings at Rock Island by origin. We use the DABOM tags detected at Rock Island or upstream to determine the proportion of hatchery and natural origin fish, and DART built a separate query to estimate the re-ascension rate at Rock Island. We then divide that estimate by the probability that a steelhead has moved from Priest Rapids Dam to Rock Island Dam (from the DABOM model), which is estimated separately for each origin, and that is our estimate of unique steelhead, by origin, that crossed Priest Rapids Dam that year.
 
