@@ -59,37 +59,21 @@ tag_df <-
                 ~ str_remove(., "_D$")))
 
 # look at proportion of tags in each "patch" by PBT / GSI assignment
-# start with hatchery tags by PBT assignment
 met_escp_prop_df <-
   tag_df |>
-  filter(origin == "H") |>
-  mutate(across(popname,
-                ~ str_split_i(., "_", 1)),
-         across(popname,
-                ~ case_when(origin == "W" ~ "---",
-                            origin == "H" &
-                              is.na(.) ~ "---",
-                            .default = .))) |>
+  mutate(grp_name = case_when(assignment_method == "PBT" ~ hatchery_byname,
+                              assignment_method == "GSI" ~ gsi_assignment,
+                              .default = "---"),
+         across(grp_name,
+                ~ replace_na(., "---"))) |>
   count(final_site,
         origin,
-        popname,
+        data_source = assignment_method,
+        grp_name,
         name = "n_tags") |>
-  add_column(data_source = "PBT",
-             .before = "popname") |>
-  # add wild tags with GSI assignments
-  bind_rows(
-    tag_df |>
-      filter(origin == "W") |>
-      count(final_site,
-            origin,
-            popname = gsi_assignment,
-            name = "n_tags") |>
-      add_column(data_source = "GSI",
-                 .before = "popname")
-  ) |>
   arrange(final_site,
           origin,
-          popname) |>
+          grp_name) |>
   group_by(final_site,
            origin) |>
   mutate(prop_tags = n_tags / sum(n_tags),
@@ -119,6 +103,7 @@ met_escp_prop_df <-
                              "H" ~ "HOR",
                              "W" ~ "NOR",
                              .default = .)))
+
 
 list("Methow" = met_escp_prop_df) |>
   write_xlsx(path = here("analysis/data/derived_data",

@@ -711,7 +711,7 @@ redd_results %>%
 
 ```{r}
 #| label: tbl-redd-est-strm
-#| tbl-cap: Estimate of redds in mainstem Wenatchee, above and below Tumwater Dam, and any tributaries surveyed.
+#| tbl-cap: Estimates of redds in the mainstem Methow River by index type and any tributaries surveyed.
 #| tbl-pos: "!ht"
 
 summ_redd_tab <-
